@@ -46,7 +46,6 @@ class Client(AdministrativeCommon):
             self.start_process("vdbench rsh")
 
 
-
 class Node(AdministrativeCommon):
     """Class for interacting with node resources.
     """
