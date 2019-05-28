@@ -2,22 +2,15 @@
 
 """"""
 
-from setuptools import setup, find_packages
-import os
-
-here = os.path.abspath(os.path.dirname(__file__))
-
-with open(os.path.join(here, 'README.rst'), 'r') as f:
-    long_description = f.read()
+from setuptools import setup
 
 
 setup(
     name='server-dev',
 
-    version='1.0.0',
+    version='1.0.1',
 
-    description='',
-    long_description=long_description,
+    description='Server administration tools',
 
     url='',
     project_urls={
@@ -49,6 +42,7 @@ setup(
     ],
 
     keywords='solidfire iscsi fibre channel storage api',
+    required_packages=[],
 
     packages=['serverdev'],
 )
