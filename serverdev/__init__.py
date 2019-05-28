@@ -1,1 +1,1 @@
-from serverdev.client import *
+from serverdev.model import *
