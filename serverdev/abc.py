@@ -100,16 +100,16 @@ class AdministrativeCommon(InformationCommon):
     def __init__(self, target, username, password):
         super(AdministrativeCommon, self).__init__(target, username, password)
 
-    def enable_protocol(self, protocol):
+    def start_process(self, p_name):
         """Run a process in the background on linux and powershell servers.
 
-        :param protocol: (str) Name of protocol to enable.
+        :param p_name: (str) Name of protocol to enable.
         """
         cmd = None
         if self.platform() == LINUX:
-            cmd = "{} &".format(protocol)
+            cmd = "{} &".format(p_name)
         elif self.platform() == WIN32:
-            cmd = "saps -NoNewWindow {}".format(protocol)
+            cmd = "saps -NoNewWindow {}".format(p_name)
         if cmd is not None:
             self.execute(cmd)
 
