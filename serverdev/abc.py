@@ -1,4 +1,6 @@
-from serverdev.common import Popen, PIPE, os, ssh_base, scp_base, LINUX, WIN32
+from serverdev.common import ssh_base, scp_base, LINUX, WIN32
+from subproces import Popen, PIPE
+import os
 
 
 class SshCommon(object):
@@ -12,6 +14,13 @@ class SshCommon(object):
         self.username = username
         self.password = password
         self.target = target
+
+    def __dict__(self):
+        return {
+            'username': self.username,
+            'password': self.password,
+            'target': self.target
+        }
 
     def format_ssh_command(self, command):
         """Format a command to with SSH credentials for self.
@@ -61,7 +70,7 @@ class SshCommon(object):
 
         :return: dict[target, username, password]
         """
-        return self.__dict__
+        return self.__dict__()
 
 
 class InformationCommon(SshCommon):
