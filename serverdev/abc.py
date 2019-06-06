@@ -32,33 +32,49 @@ class SshCommon(object):
 
         :return: str the platform of remote server operating system.
         """
-        cmd = 'echo "" | python -c "from platform import system; print(system())"'
-        return self.stdout(cmd)[0].lower()
+        if script_host_platform() == LINUX:
+            cmd = ssh_base_linux.format(**self.creds())
+            cmd += '\'echo "" | python -c "from platform import system; print(system())"\''
+        else:
+            cmd = ssh_base_windows.format(**self.creds())
+            cmd += 'echo "" | python -c "from platform import system; print(system())"'
+        return self.stdout(cmd, localhost=True, py_cmd=True)[0].strip().lower()
+        
 
-    def _format_ssh_command(self, command):
+    def _format_ssh_command(self, command, py_cmd=False):
         """Format a command to with SSH credentials for self.
 
         :param command: (str) command to execute on remote server.
+        :param py_cmd: (bool) python injected command. Must be formatted
+                        differently.
         :return: str SSH command formated with credentials.
         """
+        cmd = ""
         if script_host_platform() == LINUX:
             creds = ssh_base_linux.format(**self.creds())
         else:
             creds = ssh_base_windows.format(**self.creds())
-        cmd = creds + "'{}'"
-        cmd = cmd.format(command)
+        if not py_cmd:
+            cmd = creds + "'{}'"
+            cmd = cmd.format(command)
+        else:
+            cmd = command
         return cmd
 
-    def stdout(self, command, localhost=False):
+    def stdout(self, command, localhost=False, py_cmd=False):
         """Execute a command on a remote machine and read the output. Output is
         returned as a list of strings where each index represents a line of the
         output.
 
         :param command: (str) command to execute on remote server.
+        :param localhost: (bool) execute command on localhost rather than
+                          client. Useful for python injection commands.
+        :param py_cmd: (bool) python injected command. Must be formatted
+                        differently.
         :return: list[str] list of lines of output from command.
         """
         if not localhost:
-            cmd = self._format_ssh_command(command)
+            cmd = self._format_ssh_command(command, py_cmd)
         else:
             cmd = command
         pipe = Popen(cmd, stdout=PIPE, shell=True)
