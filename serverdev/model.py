@@ -1,40 +1,5 @@
-from serverdev.common import LINUX
+from serverdev.const import LINUX
 from serverdev.abc import AdministrativeCommon
-from solidfire.factory import ElementFactory
-
-sfe = None
-
-
-def set_global_sfe(kwargs):
-    """Set the global MVIP object for interacting with the cluster.
-
-    :param kwargs: (dict) Credentials for connecting to MVIP.
-                   kwargs = {username: ..., passwrod: .., target: ..,}
-    """
-    if not kwargs:
-        kwargs = {
-            'username': json_string['clusters'][0]['model']['username'],
-            'password': json_string['clusters'][0]['model']['password'],
-            'target': json_string['clusters'][0]['model']['mvip']
-        }
-    global sfe
-    sfe = ElementFactory.create(**kwargs)
-
-
-def get_uid_by_volume_id(volume_id):
-    """Use solidfire sdk to return a scsiNAADeviceID from its volume id. This
-    function is used for getting the scsiNAADeviceID on Windows clients Because
-    scsiNAADeviceID's are not available through windows commands, but volume
-    ID's are.
-
-    :param volume_id: (int) Volume ID to lookup
-    :return: (str) scsiNAADeviceID that corosponds to the volume ID
-    """
-    volumes = sfe.list_volumes().volumes
-    for volume in volumes:
-        if volume.volume_id == volume_id:
-            return str(volume.scsi_naadevice_id)
-    return None
 
 
 class Client(AdministrativeCommon):
@@ -95,7 +60,7 @@ class Client(AdministrativeCommon):
             # set a class attribute so that this algorithm only needs to be run
             # once. If function is called a second time, class attribute is
             # returned rather than running algorithm again.
-            setattr(self, 'volume_dict', rtn)
+            self.volume_dict = rtn
         return rtn
 
     def get_path_by_uid(self, uid):
@@ -133,27 +98,6 @@ class Client(AdministrativeCommon):
             sd = "sd-{},lun={}".format(sd_number, path)
             sd_string_list.append(sd_string.format(sd))
         return sd_string_list
-
-    def get_vdbench_wd_string(self, xfersize="4k", readpct="100",
-                              seekpct="100", flags_str=""):
-        """Create a vdbench workload definition for this client. Workload
-        definition is the same for all storage definitions.
-
-        :param xfersize: (str) transfer size for workload definition.
-        :param readpct: (str) read percent for clueter I/O.
-        :param seekpct: (str) random seek percent for cluster I/O.
-        :return: str string defining workload for all storage definitions.
-        """
-        wd_base = "wd=wd1,sd=*,,xfersize={},readpct={},seekpct={}"
-        return wd_base.format(xfersize, readpct, seekpct) + flags_str
-
-    def get_vdbench_rd_string(self, iorate="max", elapsed="10", interval="1",
-                              flags_str=""):
-        """Create a vdbench run definition for the workload definition.
-
-        :param iorate: (str) workload specific I/O rate.
-        """
-
 
     def configure_for_vdbench(self):
         """Prepare a client for vdbench to run on it.

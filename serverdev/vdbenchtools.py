@@ -1,4 +1,4 @@
-from serverdev.model import Client, sfe, set_global_sfe
+from serverdev.model import Client
 import random
 
 
@@ -11,6 +11,19 @@ def get_random_number(maximum):
     :return: int a number between 0 and the maximum parameter
     """
     return random.randint(0, maximum-1)
+
+
+def validate_client_list(*args):
+    """Helper function for instantiating WorkloadMaster. Ensures that only
+    Client objects are being passed to WorkloadMaster.__init__().
+
+    :param *args: (Client) arbitrary number of Client objects.
+    """
+    rtn = list()
+    for arg in args:
+        if type(arg) == Client:
+            rtn.append(arg)
+    return rtn
 
 
 class WorkloadMaster(object):
@@ -30,6 +43,26 @@ class WorkloadMaster(object):
         """How many clients this class was instantiated with.
         """
         return len(self.__dict__)
+
+    def get_vdbench_wd_string(self, xfersize="4k", readpct="100",
+                              seekpct="100", flags_str=""):
+        """Create a vdbench workload definition for this client. Workload
+        definition is the same for all storage definitions.
+
+        :param xfersize: (str) transfer size for workload definition.
+        :param readpct: (str) read percent for clueter I/O.
+        :param seekpct: (str) random seek percent for cluster I/O.
+        :return: str string defining workload for all storage definitions.
+        """
+        wd_base = "wd=wd1,sd=*,xfersize={},readpct={},seekpct={}"
+        return wd_base.format(xfersize, readpct, seekpct) + flags_str
+
+    def get_vdbench_rd_string(self, iorate="max", elapsed="10", interval="1",
+                              flags_str=""):
+        """Create a vdbench run definition for the workload definition.
+
+        :param iorate: (str) workload specific I/O rate.
+        """
 
     def get_all_volume_uids(self):
         """Returns all unique scsiNAADeviceID for all volumes on all clients

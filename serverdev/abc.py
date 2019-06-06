@@ -1,6 +1,11 @@
-from serverdev.common import ssh_base, scp_base, LINUX, WIN32
-from subproces import Popen, PIPE
+from serverdev.const import *
+from subprocess import Popen, PIPE
+from platform import system as system_platform
 import os
+
+
+def script_host_platform():
+    return system_platform().lower()
 
 
 class SshCommon(object):
@@ -22,13 +27,24 @@ class SshCommon(object):
             'target': self.target
         }
 
-    def format_ssh_command(self, command):
+    def platform(self):
+        """Get the operating system platform of a server 'linux' or 'windows'.
+
+        :return: str the platform of remote server operating system.
+        """
+        cmd = 'echo "" | python -c "from platform import system; print(system())"'
+        return self.stdout(cmd)[0].lower()
+
+    def _format_ssh_command(self, command):
         """Format a command to with SSH credentials for self.
 
         :param command: (str) command to execute on remote server.
         :return: str SSH command formated with credentials.
         """
-        creds = ssh_base.format(**self.creds())
+        if script_host_platform() == LINUX:
+            creds = ssh_base_linux.format(**self.creds())
+        else:
+            creds = ssh_base_windows.format(**self.creds())
         cmd = creds + "'{}'"
         cmd = cmd.format(command)
         return cmd
@@ -41,7 +57,7 @@ class SshCommon(object):
         :param command: (str) command to execute on remote server.
         :return: list[str] list of lines of output from command.
         """
-        cmd = self.format_ssh_command(command)
+        cmd = self._format_ssh_command(command)
         pipe = Popen(cmd, stdout=PIPE, shell=True)
         output = pipe.communicate()[0]
         if type(output) == bytes:
@@ -53,7 +69,7 @@ class SshCommon(object):
 
         :param command: (str) command to execute on remote server.
         """
-        cmd = self.format_ssh_command(command)
+        cmd = self._format_ssh_command(command)
         os.system(cmd)
 
     def pout(self, command):
@@ -74,6 +90,7 @@ class SshCommon(object):
 
 
 class InformationCommon(SshCommon):
+    """More restrictive than AdministrativeCommon. Used for getting general"""
     def __init__(self, target, username, password):
         super(InformationCommon, self).__init__(target, username, password)
 
@@ -83,14 +100,6 @@ class InformationCommon(SshCommon):
         :return: str hostname of remote server.
         """
         return self.stdout('hostname')[0]
-
-    def platform(self):
-        """Get the operating system platform of a server 'linux' or 'windows'.
-
-        :return: str the platform of remote server operating system.
-        """
-        cmd = 'echo "" | python -c "from platform import system; print(system())"'
-        return self.stdout(cmd)[0].lower()
 
     def online(self):
         """Ensure that the host is online before attempting to connect to it.
