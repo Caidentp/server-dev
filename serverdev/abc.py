@@ -47,7 +47,6 @@ class SshCommon(object):
             creds = ssh_base_windows.format(**self.creds())
         cmd = creds + "'{}'"
         cmd = cmd.format(command)
-        print(cmd)
         return cmd
 
     def stdout(self, command, localhost=False):
