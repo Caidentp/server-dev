@@ -47,9 +47,10 @@ class SshCommon(object):
             creds = ssh_base_windows.format(**self.creds())
         cmd = creds + "'{}'"
         cmd = cmd.format(command)
+        print(cmd)
         return cmd
 
-    def stdout(self, command):
+    def stdout(self, command, localhost=False):
         """Execute a command on a remote machine and read the output. Output is
         returned as a list of strings where each index represents a line of the
         output.
@@ -57,7 +58,10 @@ class SshCommon(object):
         :param command: (str) command to execute on remote server.
         :return: list[str] list of lines of output from command.
         """
-        cmd = self._format_ssh_command(command)
+        if not localhost:
+            cmd = self._format_ssh_command(command)
+        else:
+            cmd = command
         pipe = Popen(cmd, stdout=PIPE, shell=True)
         output = pipe.communicate()[0]
         if type(output) == bytes:
@@ -106,7 +110,10 @@ class InformationCommon(SshCommon):
 
         :return: bool True if host is online, False otherwise.
         """
-        ping = self.stdout("ping -c 2 -W 1 {}".format(self.target))
+        if script_host_platform() == LINUX:
+            ping = self.stdout("ping -c 2 -W 1 {}".format(self.target), localhost=True)
+        else:
+            ping = self.stdout("ping -n 2 -w 1 {}".format(self.target), localhost=True)
         if len(ping) > 0:
             return True
         return False
@@ -124,11 +131,11 @@ class AdministrativeCommon(InformationCommon):
         :param p_name: (str) Name of protocol to enable.
         """
         cmd = None
-        if self.platform() == LINUX:
+        if script_host_platform() == LINUX:
             cmd = "{} &".format(p_name)
-        elif self.platform() == WIN32:
+        elif script_host_platform() == WIN32:
             cmd = "saps -NoNewWindow {}".format(p_name)
-        if cmd is not None:
+        if cmd:
             self.execute(cmd)
 
     def scp(self, src_path, dst_path):

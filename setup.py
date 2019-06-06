@@ -8,7 +8,7 @@ from setuptools import setup
 setup(
     name='server-dev',
 
-    version='1.0.1',
+    version='1.0.2',
 
     description='Server administration tools',
 
@@ -26,6 +26,7 @@ setup(
         'Development Status :: 1 - Planning',
 
         'Operating System :: POSIX :: Linux',
+        'Operating System :: Microsoft :: Windows',
 
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
