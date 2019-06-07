@@ -1,5 +1,9 @@
 *.pyc
 *.exe
+*.bash
+*.sh
+*.bat
+*.ps1
 *egg-info*
 dist/*
 test.py
