@@ -36,12 +36,12 @@ class SshCommon(object):
             cmd = ssh_base_linux.format(**self.creds())
             cmd += '\'echo "" | python -c "from platform import system; print(system())"\''
         else:
-            cmd = ssh_base_windows.format(**self.creds())
-            cmd += 'echo "" | python -c "from platform import system; print(system())"'
-        return self.stdout(cmd, localhost=True, py_cmd=True)[0].strip().lower()
-        
+            ssh_cmd = ssh_base_windows.format(**self.creds())
+            cmd = 'powershell -command "{}\'echo \\\\\\"\\\\\\" | python -c \\\\\\"from platform import system; print(system())\\\\\\\"\'"'.format(ssh_cmd)
+        return self.stdout(cmd, localhost=True)[0].lower().strip()
 
-    def _format_ssh_command(self, command, py_cmd=False):
+
+    def _format_ssh_command(self, command,):
         """Format a command to with SSH credentials for self.
 
         :param command: (str) command to execute on remote server.
@@ -54,14 +54,11 @@ class SshCommon(object):
             creds = ssh_base_linux.format(**self.creds())
         else:
             creds = ssh_base_windows.format(**self.creds())
-        if not py_cmd:
-            cmd = creds + "'{}'"
-            cmd = cmd.format(command)
-        else:
-            cmd = command
+        cmd = creds + "'{}'"
+        cmd = cmd.format(command)
         return cmd
 
-    def stdout(self, command, localhost=False, py_cmd=False):
+    def stdout(self, command, localhost=False):
         """Execute a command on a remote machine and read the output. Output is
         returned as a list of strings where each index represents a line of the
         output.
@@ -74,7 +71,7 @@ class SshCommon(object):
         :return: list[str] list of lines of output from command.
         """
         if not localhost:
-            cmd = self._format_ssh_command(command, py_cmd)
+            cmd = self._format_ssh_command(command)
         else:
             cmd = command
         pipe = Popen(cmd, stdout=PIPE, shell=True)
