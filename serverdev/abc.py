@@ -40,7 +40,6 @@ class SshCommon(object):
             cmd = 'powershell -command "{}\'echo \\\\\\"\\\\\\" | python -c \\\\\\"from platform import system; print(system())\\\\\\\"\'"'.format(ssh_cmd)
         return self.stdout(cmd, localhost=True)[0].lower().strip()
 
-
     def _format_ssh_command(self, command,):
         """Format a command to with SSH credentials for self.
 
@@ -126,9 +125,7 @@ class InformationCommon(SshCommon):
             ping = self.stdout("ping -c 2 -W 1 {}".format(self.target), localhost=True)
         else:
             ping = self.stdout("ping -n 2 -w 1 {}".format(self.target), localhost=True)
-        if len(ping) > 0:
-            return True
-        return False
+        return len(ping) > 0
 
 
 class AdministrativeCommon(InformationCommon):
@@ -145,10 +142,9 @@ class AdministrativeCommon(InformationCommon):
         cmd = None
         if script_host_platform() == LINUX:
             cmd = "{} &".format(p_name)
-        elif script_host_platform() == WIN32:
+        else:
             cmd = "saps -NoNewWindow {}".format(p_name)
-        if cmd:
-            self.execute(cmd)
+        self.execute(cmd)
 
     def scp(self, src_path, dst_path):
         """Use scp to move a file from localhost to remote server.
