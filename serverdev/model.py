@@ -1,140 +1,165 @@
-from serverdev.const import LINUX
-from serverdev.abc import AdministrativeCommon
+import requests
+import json
+import os
+from subprocess import PIPE, Popen
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from requests.packages.urllib3 import disable_warnings
 
 
-class Client(AdministrativeCommon):
-    """Class for interacting with client resources.
-    """
-    def __init__(self, target, username, password):
-        super(Client, self).__init__(target, username, password)
-        self.vdbench_options = list()
-        # self.volume_dict  Created by calling self.get_volume_dict()
+session = None
+entry_url = None
 
-    def get_volume_paths(self):
-        """Returns the path name of each active volume on this client.
 
-        :return: list[str] mpaths if client is linux, physicaldrives if client
-                 is Windows
-        """
-        if self.platform() == LINUX:
-            cmd = "multipath -ll | egrep -oi 'mpath[a-z]+'"
-            return ["/dev/mapper/" + x for x in self.stdout(cmd)]
-        # Windows clients
-        regex = " | egrep -oi '\\\\.\\PhysicalDrive[0-9]+'"
-        cmd = "'{}'".format('iscsiapp --disk_map') + regex
-        return self.stdout(cmd)
+class InvalidVirtualMachine(Exception):
+    pass
 
-    def get_lun_ids(self):
-        """Returns the volume id's of each active volume on this client
 
-        :return: list[str] active scsiNAADeviceID's on this client.
-        """
-        if self.platform() == LINUX:
-            ids = self.stdout("multipath -ll | egrep -oi \"\\([a-z0-9]+\\)\"")
-            return [x[1:-1] for x in ids]  # remove parentheses from ends
-        # Windows clients
-        ids = self.stdout("'iscsiapp --disk_map' | egrep -oi 'VolumeID: [0-9]+'")
-        ids = [int(x[10:]) for x in ids]
-        return [get_uid_by_volume_id(x) for x in ids]
+class InvalidVirtualDisk(Exception):
+    pass
 
-    def get_volume_dict(self):
-        """Maps each volume's path (physicaldrive on Windwos, mpath on linux)
-        name to its scsiNAADeviceID in a python dictionary (hashtable).
-        This function will create a class attribute 'self.volume_dict' so
-        that it only has to be run once due to the high performance cost.
 
-        :return: dict[path: scsiNAADeviceID] (keys = (str), values = (str))
-        """
-        rtn = None
-        try:
-            # memoization is used due to constly function
-            rtn = self.volume_dict
-        # if function has not been called before
-        except AttributeError:
-            paths = self.get_volume_paths()
-            uids = self.get_lun_ids()
-            if paths is not None and uids is not None:
-                rtn = dict(zip(paths, uids))
-            else:
-                rtn = dict()
-            # set a class attribute so that this algorithm only needs to be run
-            # once. If function is called a second time, class attribute is
-            # returned rather than running algorithm again.
-            self.volume_dict = rtn
+def memoize(function):
+    cache = dict()
+
+    def memoized_function(*args):
+        if args in cache:
+            return cache[args]
+        cache[args] = function(*args)
+        return cache[args]
+
+    return memoized_function
+
+
+@memoize
+def get_all_vms():
+    vms = session.get(entry_url+'/vcenter/vm')
+    return json.loads(vms.text)['value']
+
+
+@memoize
+def get_all_vmids():
+    return [vm['vm'] for vm in get_all_vms()]
+
+
+@memoize
+def get_all_hosts():
+    hosts = session.get(entry_url+'/vcenter/host')
+    return json.loads(hosts.text)['value']
+
+
+def stdout(command):
+    output = Popen(command, stdout=PIPE, shell=True).communicate()[0]
+    if type(output) == bytes:
+        return output.decode('utf-8').split('\n')[:-1]
+    return output
+
+
+def get_all_host_ips():
+    hosts = get_all_hosts()
+    return [host['name'] for host in hosts]
+
+
+def get_vm_by_hostname(vm_name):
+    for vm in get_all_vms():
+        if vm['name'] == vm_name:
+            return vm
+    return None
+
+
+def get_host_by_ip(ip):
+    for host in get_all_hosts():
+        if host['name'] == ip:
+            return host
+    return None
+
+
+class VCenterSession(object):
+    def __init__(self, address, username, password):
+        self.setup(address)
+        self.username = username
+        self.password = password
+        self.address = address
+        self.session = session.post(entry_url+'/com/vmware/cis/session', auth=(username, password))
+
+    def setup(self, address):
+        global session
+        global entry_url
+        entry_url = 'https://'+address+"/rest"
+        disable_warnings(InsecureRequestWarning)
+        session = requests.Session()
+        session.verify = False
+
+
+class EsxHost(object):
+    def __init__(self, address, username, password):
+        self.address = address
+        self.password = password
+        self.url = entry_url + "/vcenter/host/{}".format(self.address)
+        if os.name == 'nt':
+            self.cmd = 'echo "y" | plink -ssh -pw {} {}@{}'
+        else:
+            self.cmd = 'sshpass -p {} ssh -o StrictHostKeyChecking=no {}@{}'
+        self.cmd = self.cmd.format(password, username, address) + " '{}'"
+
+    def list_vm_hostnames(self):
+        output = stdout(self.cmd.format('vim-cmd vmsvc/getallvms'))[1:]
+        return [x.strip().split()[1] for x in output]
+
+    def list_vm_vmids(self):
+        return [get_vm_by_hostname(vm)['vm'] for vm in self.list_vm_hostnames()]
+
+    def list_vm_ips(self):
+        pass
+
+    def enter_maint_mode(self):
+        os.system(self.cmd.format('esxcli system maintenanceMode set --enable true'))
+
+    def exit_maint_mode(self):
+        os.system(self.cmd.format('esxcli system maintenanceMode set --enable false'))
+
+    def reboot(self):
+        os.system(self.cmd.format('reboot'))
+
+    def init_vms(self):
+        return [Vm(vmid) for vmid in self.list_vm_vmids()]
+
+
+class Vm(object):
+    def __init__(self, vmid):
+        if vmid not in get_all_vmids():
+            error = "{} is not a valid virtual machind."
+            raise InvalidVirtualMachine(error.format(self.vmid))
+        self.vmid = vmid
+        self.url = entry_url + '/vcenter/vm/' + vmid
+
+    def poweroff(self):
+        print(self.url+'/power/stop')
+        session.post(self.url+'/power/stop')
+
+    def poweron(self):
+        print(self.url+'/power/start')
+        session.post(self.url+'/power/start')
+
+    @memoize
+    def get_disk_names(self):
+        disks = session.get(self.url+'/hardware/disk')
+        return [x['disk'] for x in json.loads(disks.text)['value']]
+
+    def get_disks(self):
+        rtn = list()
+        for disk in self.get_disk_names():
+            disk = json.loads(session.get(self.url+'/hardware/disk/'+disk).text)
+            rtn.append(disk)
         return rtn
 
-    def get_path_by_uid(self, uid):
-        """Reverse dictionary lookup. Return an scsiNAADeviceID by its volume id
-        used within the solidfire sdk.
+    def unmap_disk(self, disk):
+        if disk not in self.get_disk_names():
+            error = "{} is not a valid disk for this virtual machine."
+            raise InvalidVirtualDisk(error.format(disk))
+        session.delete(self.url+'/hardware/disk/'+disk)
 
-        :param uid: (int) Volume ID of a LUN used by solidfire sdk.
-        :return: str scsiNAADeviceID toat matches a volume ID.
-        """
-        for key, value in self.get_volume_dict().items():
-            if value == uid:
-                return key
-        return None
-
-    def get_vdbench_sd_list(self, flags_str="", counter=0):
-        """Get a list of storage definitions for all volumes on this client.
-        Additionally, you can add vdparm storage definition flags to the
-        storage definition strings returned by this function.
-
-        !NOTE! Do NOT add 'openflags=o_direct' to flags string, it is detected
-               and added automaticallw when necessary.
-
-        :param flags_str: (str) vdparm flags to add to each storage definition.
-        :param counter: (int) counting index to start at when naming storage
-                        definitions. Used for multi-host config files.
-        :return: list[str] vdparm stoarge definitions strings.
-        """
-        if self.platform() == LINUX:
-            flags_str += "openflags=o_direct"
-        sd_string = "{}," + flags_str
-
-        sd_string_list = list()
-        for index, path in enumerate(self.get_volume_paths()):
-            sd_number = index + counter
-            sd = "sd-{},lun={}".format(sd_number, path)
-            sd_string_list.append(sd_string.format(sd))
-        return sd_string_list
-
-    def configure_for_vdbench(self):
-        """Prepare a client for vdbench to run on it.
-        """
-        self.start_rsh()
-
-    def rsh_is_running(self):
-        """Check if rsh is running on a client or not. This method is used by
-        self.start_rsh() to ensure that it returnsself.
-
-        :return: bool True if rsh is running, False otherwise
-        """
-        running = self.stdout('ps -ef | grep -v grep | grep -e "vdbench rsh"')
-        if len(running) == 0:
-            return False
-        return True
-
-    def start_rsh(self):
-        """Ensure that rsh is running in the background on this client. If rsh
-        is not running, start it; if rsh is running, return. Rsh is required to
-        be running on clients for multiple host vdparm configuration files.
-        """
-        if not self.rsh_is_running():
-            self.start_process("vdbench rsh")
-
-    def stop_io(self):
-        """Kill vdbench on this client to stop io from running.
-        """
-        if self.platform() == LINUX:
-            self.execute('pkill vdbench; pkill java')
-        else:
-            # Windows clients
-            self.execute("Stop-Process -Name 'java' -Force")
-
-
-class Node(AdministrativeCommon):
-    """Class for interacting with node resources.
-    """
-    def __init__(self, target, username, password):
-        super(Node, self).__init__(target, username, password)
+    def unmap_all_disks(self):
+        disks = self.get_disk_names()
+        if len(disks) > 1:
+            for disk in disks[1:]:
+                self.unmap_disk(disk)

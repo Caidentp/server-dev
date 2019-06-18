@@ -8,7 +8,7 @@ from setuptools import setup
 setup(
     name='server-dev',
 
-    version='1.0.2',
+    version='1.0.3',
 
     description='Server administration tools',
 
@@ -42,7 +42,7 @@ setup(
         'Programming Language :: Python :: 3',
     ],
 
-    keywords='solidfire iscsi fibre channel storage api',
+    keywords='api esx esxi vmware',
     required_packages=[],
 
     packages=['serverdev'],
