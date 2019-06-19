@@ -35,7 +35,7 @@ def stdout(host, username, password, command):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
         ssh.connect(host, 22, username, password)
-        sin, sout, serr = ssh.exec_command(command)
+        sin, sout, serr = ssh.exec_command(command, timeout=3)
         if sys.version[0] == '2':
             return sout.read().split('\n')[:-1]
         return str(sout.read(), 'utf-8').split('\n')[:-1]
@@ -119,6 +119,10 @@ class EsxHost(object):
         self.username = username
         self.password = password
         self.url = entry_url + "/vcenter/host/{}".format(self.address)
+        
+    def _get_vmids(self):
+        command = self.execute('vim-cmd vmsvc/getallvms')
+        return [x.strip().split()[0] for x in command[1:]]
 
     def execute(self, command):
         return stdout(self.address, self.username, self.password, command)
@@ -131,7 +135,12 @@ class EsxHost(object):
         return [get_vm_by_hostname(x)['vm'] for x in self.list_vm_hostnames()]
 
     def list_vm_ips(self):
-        pass
+        rtn = list()
+        for vmid in self._get_vmids():
+            pre = "vim-cmd vmsvc/get.guest "
+            suf = " | egrep -o '([0-9]{1,3}\\.){3}[0-9]{1,3}'"
+            rtn.append(self.execute(pre+vmid+suf)[0])
+        return rtn
 
     def enter_maint_mode(self):
         self.execute('esxcli system maintenanceMode set --enable true')
@@ -142,7 +151,8 @@ class EsxHost(object):
     def reboot(self):
         self.execute('reboot')
 
-    def init_vms(self):
+    @memoize
+    def get_vms(self):
         return [Vm(vmid) for vmid in self.list_vm_vmids()]
 
 
