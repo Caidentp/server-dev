@@ -35,7 +35,9 @@ def stdout(host, username, password, command):
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
         ssh.connect(host, 22, username, password)
         sin, sout, serr = ssh.exec_command(command)
-        return sout.read().split('\n')[:-1]
+        if type(sout) == bytes:
+            return sout.read().split('\n')[:-1]
+        return str(sout.read(), 'utf-8').split('\n')[:-1]
 
     except paramiko.AuthenticationException:
         print('Incorrect username or password for {}'.format(host))
