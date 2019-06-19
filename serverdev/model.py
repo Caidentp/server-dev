@@ -1,7 +1,6 @@
 import requests
 import json
 import paramiko
-from subprocess import PIPE, Popen
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.packages.urllib3 import disable_warnings
 
