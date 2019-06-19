@@ -10,7 +10,7 @@ setup(
 
     version='1.0.7',
 
-    description='Server administration tools',
+    description='Python wrapper for vCenter Management API 6.5.',
 
     url='https://pypi.org/project/server-dev/',
     project_urls={
