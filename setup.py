@@ -12,18 +12,18 @@ setup(
 
     description='Server administration tools',
 
-    url='',
+    url='https://pypi.org/project/server-dev/',
     project_urls={
         'Documentation': 'https://caidenpyle.com/api_docs'
     },
 
-    author='Caiden Pyle',
+    author='Caidence Pyle',
     author_email='caiden.pyle@netapp.com',
 
     license='MIT',
 
     classifiers=[
-        'Development Status :: 1 - Planning',
+        'Development Status :: 4 - Beta',
 
         'Operating System :: POSIX :: Linux',
         'Operating System :: Microsoft :: Windows',
