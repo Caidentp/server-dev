@@ -1,5 +1,6 @@
 import requests
 import json
+import sys
 import paramiko
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.packages.urllib3 import disable_warnings
@@ -35,7 +36,7 @@ def stdout(host, username, password, command):
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
         ssh.connect(host, 22, username, password)
         sin, sout, serr = ssh.exec_command(command)
-        if type(sout) == bytes:
+        if sys.version[0] == '2':
             return sout.read().split('\n')[:-1]
         return str(sout.read(), 'utf-8').split('\n')[:-1]
 
