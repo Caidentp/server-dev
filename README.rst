@@ -11,6 +11,20 @@ API documentation: https://caidenpyle.com/api_docs.html
 Quick Start
 -----------
 
+Install the module using PyPI
+
+Windows
+
+.. code-block:: text
+
+    python -m pip install server-dev
+    
+Linux
+
+.. code-block:: text
+
+    pip install server-dev
+
 Pull the module into your namespace:
 
 .. code-block:: python
