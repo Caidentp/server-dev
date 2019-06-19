@@ -66,7 +66,7 @@ def memoize(function):
 def get_all_vms():
     """Get a list of all virtual machine dictionaries that are managed by
     the current vCenter session. This function is memoized.
-    
+
     :return list[dict[str, str]]: list of json dictionaries of virtual
                                   machines.
     """
@@ -78,7 +78,7 @@ def get_all_vms():
 def get_all_vmids():
     """Get the vCenter REST api vmid name for each virtual machine. This
     function is memoized.
-    
+
     :return list[str]: each virtual machine's vmid.
     """
     return [vm['vm'] for vm in get_all_vms()]
@@ -88,7 +88,7 @@ def get_all_vmids():
 def get_all_hosts():
     """Get a list of all esx servers managed by the current vCenter session.
     This function is memoized.
-    
+
     :return list[dict[str, str]]: list of host json dictionaries.
     """
     hosts = session.get(entry_url+'/vcenter/host')
@@ -98,7 +98,7 @@ def get_all_hosts():
 def get_all_host_ips():
     """Get the IP address of each esx server managed by the current vCenter
     session.
-    
+
     :return list[str]: list of host IP addresses.
     """
     hosts = get_all_hosts()
@@ -107,7 +107,7 @@ def get_all_host_ips():
 
 def get_vm_by_hostname(vm_name):
     """Get a virtual machine's json dictionary by its hostname.
-    
+
     :param str vm_name: hostname of virtual machine to return.
     :return dict[str, str]: json dictionary of virtual machine.
     """
@@ -119,7 +119,7 @@ def get_vm_by_hostname(vm_name):
 
 def get_host_by_ip(ip):
     """Get an esx host's json dictionary by its IP address.
-    
+
     :param str ip: IP address of host to return.
     :return dict[str, str]: json dictionary of esx host.
     """
@@ -162,7 +162,7 @@ class EsxHost(object):
     def _get_vmids(self):
         """Get a list of vmids that are specific to the local esx operating
         system.
-        
+
         :return list[str]: list of vmids for all virtual machines.
         """
         command = self.execute('vim-cmd vmsvc/getallvms')
@@ -170,7 +170,7 @@ class EsxHost(object):
 
     def execute(self, command):
         """Execute a command over ssh on the esx server and return stdout.
-        
+
         :return list[str]: lines of stdout from command execution.
         """
         return stdout(self.address, self.username, self.password, command)
@@ -178,7 +178,7 @@ class EsxHost(object):
     def list_vm_hostnames(self):
         """Get the hostname for each virtual machine that resides on
         the esx server.
-        
+
         :return list[str]: list of virtual machine hostnames.
         """
         command = self.execute('vim-cmd vmsvc/getallvms')
@@ -186,7 +186,7 @@ class EsxHost(object):
 
     def list_vm_api_names(self):
         """Get a list of virtual machine REST api names for making api calls.
-        
+
         :return list[str]: virtual machine REST api names.
         """
         return [get_vm_by_hostname(x)['vm'] for x in self.list_vm_hostnames()]
@@ -221,7 +221,7 @@ class EsxHost(object):
     def get_vms(self):
         """Get a list of instantiated Vm objects for each virtual machine on
         this esx server. This method is memoized.
-        
+
         :return list[serverdev.model.Vm]: list of instantiated virtual
                                           machines.
         """
@@ -257,7 +257,7 @@ class Vm(object):
     def get_disk_names(self):
         """Get the REST api disk names for all drives on a virtual machine.
         This function is memoized.
-        
+
         :return list[str]: list of virtual disk names.
         """
         disks = session.get(self.url+'/hardware/disk')
@@ -265,7 +265,7 @@ class Vm(object):
 
     def get_disks(self):
         """Get a list of a virtual machine disk's json dictionaries.
-        
+
         :return list[dict[str, str]]: list of disk json dictionaries.
         """
         rtn = list()
@@ -277,7 +277,7 @@ class Vm(object):
     def unmap_disk(self, disk):
         """Unmap a disk from a virtual machine by its REST api disk name. Disk
         files are note deleted, just removed from virtual machine configuration.
-        
+
         :param str disk: disk to unmap from virtual machine.
         """
         if disk not in self.get_disk_names():
