@@ -6,7 +6,7 @@ Description
 
 This is a Python wrapper for vCenter Management REST API 6.5.
 
-API documentation: https://caidenpyle.com/api_docs.html
+API documentation: https://caidenpyle.com/tutorials/serverdev/main.html
 
 Quick Start
 -----------
@@ -18,7 +18,7 @@ Windows
 .. code-block:: text
 
     python -m pip install server-dev
-    
+
 Linux
 
 .. code-block:: text

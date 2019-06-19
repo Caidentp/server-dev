@@ -8,13 +8,13 @@ from setuptools import setup
 setup(
     name='server-dev',
 
-    version='1.0.6',
+    version='1.0.7',
 
     description='Server administration tools',
 
     url='https://pypi.org/project/server-dev/',
     project_urls={
-        'Documentation': 'https://caidenpyle.com/api_docs'
+        'Documentation': 'https://caidenpyle.com/tutorials/serverdev/main.html'
     },
 
     author='Caidence Pyle',
