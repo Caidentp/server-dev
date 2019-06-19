@@ -1,6 +1,6 @@
 import requests
 import json
-import os
+import paramiko
 from subprocess import PIPE, Popen
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.packages.urllib3 import disable_warnings
@@ -16,6 +16,34 @@ class InvalidVirtualMachine(Exception):
 
 class InvalidVirtualDisk(Exception):
     pass
+
+
+class SshException(Exception):
+    pass
+
+
+def stdout(host, username, password, command):
+    """Execute a command on a remote host and return stdout as a list of lines.
+
+    :param str host: IP address of server to connect to.
+    :param str username: username of host to connect to.
+    :param str password: password of host to connect to.
+    :param str command: command to execute op remote host.
+    :return list[str]: list of lines of stdout from command.
+    """
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+        ssh.connect(host, 22, username, password)
+        sin, sout, serr = ssh.exec_command(command)
+        return sout.read().split('\n')[:-1]
+
+    except paramiko.AuthenticationException:
+        print('Incorrect username or password for {}'.format(host))
+    except paramiko.SSHException:
+        print('Unable to connect to host {}'.format(host))
+    finally:
+        ssh.close()
 
 
 def memoize(function):
@@ -45,13 +73,6 @@ def get_all_vmids():
 def get_all_hosts():
     hosts = session.get(entry_url+'/vcenter/host')
     return json.loads(hosts.text)['value']
-
-
-def stdout(command):
-    output = Popen(command, stdout=PIPE, shell=True).communicate()[0]
-    if type(output) == bytes:
-        return output.decode('utf-8').split('\n')[:-1]
-    return output
 
 
 def get_all_host_ips():
@@ -93,32 +114,31 @@ class VCenterSession(object):
 class EsxHost(object):
     def __init__(self, address, username, password):
         self.address = address
+        self.username = username
         self.password = password
         self.url = entry_url + "/vcenter/host/{}".format(self.address)
-        if os.name == 'nt':
-            self.cmd = 'echo "y" | plink -ssh -pw {} {}@{}'
-        else:
-            self.cmd = 'sshpass -p {} ssh -o StrictHostKeyChecking=no {}@{}'
-        self.cmd = self.cmd.format(password, username, address) + " '{}'"
+
+    def execute(self, command):
+        return stdout(self.address, self.username, self.password, command)
 
     def list_vm_hostnames(self):
-        output = stdout(self.cmd.format('vim-cmd vmsvc/getallvms'))[1:]
-        return [x.strip().split()[1] for x in output]
+        command = self.execute('vim-cmd vmsvc/getallvms')
+        return [x.strip().split()[1] for x in command[1:]]
 
     def list_vm_vmids(self):
-        return [get_vm_by_hostname(vm)['vm'] for vm in self.list_vm_hostnames()]
+        return [get_vm_by_hostname(x)['vm'] for x in self.list_vm_hostnames()]
 
     def list_vm_ips(self):
         pass
 
     def enter_maint_mode(self):
-        os.system(self.cmd.format('esxcli system maintenanceMode set --enable true'))
+        self.execute('esxcli system maintenanceMode set --enable true')
 
     def exit_maint_mode(self):
-        os.system(self.cmd.format('esxcli system maintenanceMode set --enable false'))
+        self.execute('esxcli system maintenanceMode set --enable false')
 
     def reboot(self):
-        os.system(self.cmd.format('reboot'))
+        self.execute('reboot')
 
     def init_vms(self):
         return [Vm(vmid) for vmid in self.list_vm_vmids()]
