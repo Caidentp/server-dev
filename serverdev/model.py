@@ -22,20 +22,21 @@ class SshException(Exception):
     pass
 
 
-def stdout(host, username, password, command):
+def stdout(host, username, password, command, timeout=3):
     """Execute a command on a remote host and return stdout as a list of lines.
 
     :param str host: IP address of server to connect to.
     :param str username: username of host to connect to.
     :param str password: password of host to connect to.
     :param str command: command to execute op remote host.
+    :param int timeout: ssh command timeout.
     :return list[str]: list of lines of stdout from command.
     """
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy)
         ssh.connect(host, 22, username, password)
-        sin, sout, serr = ssh.exec_command(command, timeout=3)
+        sin, sout, serr = ssh.exec_command(command, timeout=timeout)
         if sys.version[0] == '2':
             return sout.read().split('\n')[:-1]
         return str(sout.read(), 'utf-8').split('\n')[:-1]
@@ -158,7 +159,7 @@ class EsxHost(object):
         self.username = username
         self.password = password
         self.url = entry_url + "/vcenter/host/{}".format(self.address)
-        
+
     def _get_vmids(self):
         """Get a list of vmids that are specific to the local esx operating
         system.
